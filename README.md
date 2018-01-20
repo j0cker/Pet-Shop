@@ -47,3 +47,8 @@ app.sellArticle("iPhone 7", "Selling it in order to buy iphone 8", web3.toWei(3,
 truffle test test/petShopTest.js
 
 truffle test test/petShopTest2.js
+
+to run the front end just type:
+
+npm i
+npm run dev
