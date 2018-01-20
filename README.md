@@ -33,3 +33,11 @@ var Greetings = artifacts.require("./petShop.sol");
 nota: the number to at the beginning of the name of the contract is needed, cause truffle is going to follow that number in order to identify the process.
 
 truffle migrate //it will run the contract
+
+petShop.address
+
+petShop.deployed().then(function(instance){ app=instance; })
+
+app
+
+app.getArticle.call();
