@@ -1,6 +1,6 @@
 pragma solidity ^0.4.11;
 
-contract ChainList {
+contract petShop {
 
     // State variables of the articles
     address seller;
@@ -24,5 +24,5 @@ contract ChainList {
         uint256 _price) {
         return(seller, name, description, price);
     }
-    
+
 }
