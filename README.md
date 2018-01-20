@@ -41,3 +41,5 @@ petShop.deployed().then(function(instance){ app=instance; })
 app
 
 app.getArticle.call();
+
+app.sellArticle("iPhone 7", "Selling it in order to buy iphone 8", web3.toWei(3, "ether"), {from: web3.eth.accounts[1]}
