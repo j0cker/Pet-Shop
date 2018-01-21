@@ -8,6 +8,11 @@ contract petShop {
     string description;
     uint256 price;
 
+    // constructor -> create a default article
+    function petShop() {
+        sellArticle("Default article", "This an article set by default", 1000000000000000000);
+    }
+
     // sell an article. This will change the state of the contract so it whas a cost.
     function sellArticle(string _name, string _description, uint256 _price) public {
         seller = msg.sender;

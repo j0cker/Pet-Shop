@@ -1,64 +1,102 @@
 App = {
   web3Provider: null,
   contracts: {},
+  account: 0x0,
 
   init: function() {
-    // Load pets.
-    $.getJSON('../pets.json', function(data) {
-      var petsRow = $('#petsRow');
-      var petTemplate = $('#petTemplate');
-
-      for (i = 0; i < data.length; i ++) {
-        petTemplate.find('.panel-title').text(data[i].name);
-        petTemplate.find('img').attr('src', data[i].picture);
-        petTemplate.find('.pet-breed').text(data[i].breed);
-        petTemplate.find('.pet-age').text(data[i].age);
-        petTemplate.find('.pet-location').text(data[i].location);
-        petTemplate.find('.btn-adopt').attr('data-id', data[i].id);
-
-        petsRow.append(petTemplate.html());
-      }
-    });
-
     return App.initWeb3();
   },
 
   initWeb3: function() {
-    /*
-     * Replace me...
-     */
-
+    // Initialize web3 and set the provider to the testRPC.
+    if (typeof web3 !== 'undefined') {
+      App.web3Provider = web3.currentProvider;
+      web3 = new Web3(web3.currentProvider);
+    } else {
+      // set the provider you want from Web3.providers
+      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:8545');
+      web3 = new Web3(App.web3Provider);
+    }
+    App.displayAccountInfo();
     return App.initContract();
   },
 
+  displayAccountInfo: function() {
+    console.log("[displayAccountInfo]");
+    web3.eth.getCoinbase(function(err, account) {
+      if (err === null) {
+        App.account = account;
+        $("#account").text(account);
+        web3.eth.getBalance(account, function(err, balance) {
+          if (err === null) {
+            $("#accountBalance").text(web3.fromWei(balance, "ether") + " ETH");
+          }
+        });
+      }
+    });
+  },
+
   initContract: function() {
-    /*
-     * Replace me...
-     */
+    console.log("[initContract]");
+    $.getJSON('petShop.json', function(chainListArtifact) {
 
-    return App.bindEvents();
+      console.log(App.contracts);
+
+      // Get the necessary contract artifact file and use it to instantiate a truffle contract abstraction.
+      App.contracts.petShop = TruffleContract(chainListArtifact);
+
+
+      // Set the provider for our contract.
+      App.contracts.petShop.setProvider(App.web3Provider);
+
+      // Retrieve the article from the smart contract
+      return App.reloadArticles();
+    });
   },
 
-  bindEvents: function() {
-    $(document).on('click', '.btn-adopt', App.handleAdopt);
+
+  reloadArticles: function() {
+
+    console.log("[reloadArticles]");
+
+    // refresh account information because the balance may have changed
+    App.displayAccountInfo();
+
+    App.contracts.petShop.deployed().then(function(instance) {
+      return instance.getArticle.call();
+    }).then(function(article) {
+
+      console.log(article[0]);
+
+      if (article[0] == 0x0) {
+        // no article
+        console.log("No hay artículo");
+        return;
+      }
+
+      // Retrieve and clear the article placeholder
+      var articlesRow = $('#articlesRow');
+      articlesRow.empty();
+
+      // Retrieve and fill the article template
+      var articleTemplate = $('#articleTemplate');
+      articleTemplate.find('.panel-title').text(article[1]);
+      articleTemplate.find('.article-description').text(article[2]);
+      articleTemplate.find('.article-price').text(web3.fromWei(article[3], "ether"));
+
+      var seller = article[0];
+      if (seller == App.account) {
+        seller = "You";
+      }
+
+      articleTemplate.find('.article-seller').text(seller);
+
+      // add this new article
+      articlesRow.append(articleTemplate.html());
+    }).catch(function(err) {
+      console.log(err.message);
+    });
   },
-
-  markAdopted: function(adopters, account) {
-    /*
-     * Replace me...
-     */
-  },
-
-  handleAdopt: function(event) {
-    event.preventDefault();
-
-    var petId = parseInt($(event.target).data('id'));
-
-    /*
-     * Replace me...
-     */
-  }
-
 };
 
 $(function() {
