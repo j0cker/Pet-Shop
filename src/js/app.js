@@ -22,7 +22,6 @@ App = {
   },
 
   displayAccountInfo: function() {
-    console.log("[displayAccountInfo]");
     web3.eth.getCoinbase(function(err, account) {
       if (err === null) {
         App.account = account;
@@ -37,40 +36,30 @@ App = {
   },
 
   initContract: function() {
-    console.log("[initContract]");
-    $.getJSON('petShop.json', function(chainListArtifact) {
-
-      console.log(App.contracts);
-
+    $.getJSON('petShop.json', function(petShopArtifact) {
       // Get the necessary contract artifact file and use it to instantiate a truffle contract abstraction.
-      App.contracts.petShop = TruffleContract(chainListArtifact);
-
+      App.contracts.petShop = TruffleContract(petShopArtifact);
 
       // Set the provider for our contract.
       App.contracts.petShop.setProvider(App.web3Provider);
+
+      // Listen for events
+      App.listenToEvents();
 
       // Retrieve the article from the smart contract
       return App.reloadArticles();
     });
   },
 
-
   reloadArticles: function() {
-
-    console.log("[reloadArticles]");
-
     // refresh account information because the balance may have changed
     App.displayAccountInfo();
 
     App.contracts.petShop.deployed().then(function(instance) {
       return instance.getArticle.call();
     }).then(function(article) {
-
-      console.log(article[0]);
-
       if (article[0] == 0x0) {
         // no article
-        console.log("No hay artículo");
         return;
       }
 
@@ -95,6 +84,42 @@ App = {
       articlesRow.append(articleTemplate.html());
     }).catch(function(err) {
       console.log(err.message);
+    });
+  },
+
+  sellArticle: function() {
+    // retrieve details of the article
+    var _article_name = $("#article_name").val();
+    var _description = $("#article_description").val();
+    var _price = web3.toWei(parseInt($("#article_price").val() || 0), "ether");
+
+    if ((_article_name.trim() == '') || (_price == 0)) {
+      // nothing to sell
+      return false;
+    }
+
+    App.contracts.petShop.deployed().then(function(instance) {
+      return instance.sellArticle(_article_name, _description, _price, {
+        from: App.account,
+        gas: 500000
+      });
+    }).then(function(result) {
+
+    }).catch(function(err) {
+      console.error(err);
+    });
+  },
+
+  // Listen for events raised from the contract
+  listenToEvents: function() {
+    App.contracts.petShop.deployed().then(function(instance) {
+      instance.sellArticleEvent({}, {
+        fromBlock: 0,
+        toBlock: 'latest'
+      }).watch(function(error, event) {
+        $("#events").append('<li class="list-group-item">' + event.args._name + ' is for sale' + '</li>');
+        App.reloadArticles();
+      });
     });
   },
 };
