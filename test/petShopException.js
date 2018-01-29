@@ -1,176 +1,115 @@
-App = {
-  web3Provider: null,
-  contracts: {},
-  account: 0x0,
+//before mapping
+// Contract to be tested
+var petShop = artifacts.require("./petShop.sol");
 
-  init: function() {
-    return App.initWeb3();
-  },
+// Test suite
+contract('petShop', function(accounts) {
+  var petShopInstance;
+  var seller = accounts[1];
+  var buyer = accounts[2];
+  var articleName = "article 1";
+  var articleDescription = "Description for article 1";
+  var articlePrice = 10;
 
-  initWeb3: function() {
-    // Initialize web3 and set the provider to the testRPC.
-    if (typeof web3 !== 'undefined') {
-      App.web3Provider = web3.currentProvider;
-      web3 = new Web3(web3.currentProvider);
-    } else {
-      // set the provider you want from Web3.providers
-      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:8545');
-      web3 = new Web3(App.web3Provider);
-    }
-    App.displayAccountInfo();
-    return App.initContract();
-  },
-
-  displayAccountInfo: function() {
-    web3.eth.getCoinbase(function(err, account) {
-      if (err === null) {
-        App.account = account;
-        $("#account").text(account);
-        web3.eth.getBalance(account, function(err, balance) {
-          if (err === null) {
-            $("#accountBalance").text(web3.fromWei(balance, "ether") + " ETH");
-          }
-        });
-      }
-    });
-  },
-
-  initContract: function() {
-    $.getJSON('petShop.json', function(petShopArtifact) {
-      // Get the necessary contract artifact file and use it to instantiate a truffle contract abstraction.
-      App.contracts.petShop = TruffleContract(petShopArtifact);
-
-      // Set the provider for our contract.
-      App.contracts.petShop.setProvider(App.web3Provider);
-
-      // Listen for events
-      App.listenToEvents();
-
-      // Retrieve the article from the smart contract
-      return App.reloadArticles();
-    });
-  },
-
-  reloadArticles: function() {
-    // refresh account information because the balance may have changed
-    App.displayAccountInfo();
-
-    App.contracts.petShop.deployed().then(function(instance) {
-      return instance.getArticle.call();
-    }).then(function(article) {
-      if (article[0] == 0x0) {
-        // no article
-        return;
-      }
-
-      // Retrieve and clear the article placeholder
-      var articlesRow = $('#articlesRow');
-      articlesRow.empty();
-
-      var price = web3.fromWei(article[4], "ether");
-
-      // Retrieve and fill the article template
-      var articleTemplate = $('#articleTemplate');
-      articleTemplate.find('.panel-title').text(article[2]);
-      articleTemplate.find('.article-description').text(article[3]);
-      articleTemplate.find('.article-price').text(price);
-
-      //creamos un atributo para el precio dentro del html
-      articleTemplate.find('.btn-buy').attr('data-value', price);
-
-      // seller
-      var seller = article[0];
-      if (seller == App.account) {
-        seller = "You";
-      }
-      articleTemplate.find('.article-seller').text(seller);
-
-      // buyer
-      var buyer = article[1];
-      if (buyer == App.account) {
-        buyer = "You";
-      } else if (buyer == 0x0) {
-        buyer = "No one yet";
-      }
-      articleTemplate.find('.article-buyer').text(buyer);
-
-      if (article[0] == App.account || article[1] != 0x0) {
-        articleTemplate.find('.btn-buy').hide();
-      }
-
-      // add this new article
-      articlesRow.append(articleTemplate.html());
-    }).catch(function(err) {
-      console.log(err.message);
-    });
-  },
-
-  sellArticle: function() {
-    // retrieve details of the article
-    var _article_name = $("#article_name").val();
-    var _description = $("#article_description").val();
-    var _price = web3.toWei(parseInt($("#article_price").val() || 0), "ether");
-
-    if ((_article_name.trim() == '') || (_price == 0)) {
-      // nothing to sell
-      return false;
-    }
-
-    App.contracts.petShop.deployed().then(function(instance) {
-      return instance.sellArticle(_article_name, _description, _price, {
-        from: App.account,
-        gas: 500000
+  // Test case: no article for sale yet
+  it("should throw an exception if you try to buy an article when there is no article for sale", function() {
+    return petShop.deployed().then(function(instance) {
+      petShopInstance = instance;
+      return petShopInstance.buyArticle({
+        from: buyer,
+        value: web3.toWei(articlePrice, "ether")
       });
-    }).then(function(result) {
-
-    }).catch(function(err) {
-      console.error(err);
+    }).then(assert.fail)
+    .catch(function(error) {
+      assert(error.message.indexOf('revert') >= 0, "error should be revert");
+    }).then(function() {
+      return petShopInstance.getArticle.call();
+    }).then(function(data) {
+      //make sure sure the contract state was not altered
+      assert.equal(data[0], 0x0, "seller must be empty");
+      assert.equal(data[1], 0x0, "buyer must be empty");
+      assert.equal(data[2], '', "article name must empty");
+      assert.equal(data[3], '', "article description must be empty");
+      assert.equal(data[4].toNumber(), 0, "article price must be 0");
     });
-  },
-
-  // Listen for events raised from the contract
-  listenToEvents: function() {
-    App.contracts.petShop.deployed().then(function(instance) {
-      instance.sellArticleEvent({}, {
-        fromBlock: 0,
-        toBlock: 'latest'
-      }).watch(function(error, event) {
-        $("#events").append('<li class="list-group-item">' + event.args._name + ' is for sale' + '</li>');
-        App.reloadArticles();
-      });
-
-      instance.buyArticleEvent({}, {
-        fromBlock: 0,
-        toBlock: 'latest'
-      }).watch(function(error, event) {
-        $("#events").append('<li class="list-group-item">' + event.args._buyer + ' bought ' + event.args._name + '</li>');
-        App.reloadArticles();
-      });
-    });
-  },
-
-  buyArticle: function() {
-    event.preventDefault();
-
-    // retrieve the article price from the attribute data-value html tag
-    var _price = parseInt($(event.target).data('value'));
-
-    App.contracts.petShop.deployed().then(function(instance) {
-      return instance.buyArticle({
-        from: App.account,
-        value: web3.toWei(_price, "ether"),
-        gas: 500000
-      });
-    }).then(function(result) {
-
-    }).catch(function(err) {
-      console.error(err);
-    });
-  },
-};
-
-$(function() {
-  $(window).load(function() {
-    App.init();
   });
+
+  // Test case: buying an article you are selling
+  it("should throw an exception if you try to buy your own article", function() {
+    return petShop.deployed().then(function(instance) {
+      petShopInstance = instance;
+      return petShopInstance.sellArticle(articleName, articleDescription, web3.toWei(articlePrice, "ether"), {
+        from: seller
+      });
+    }).then(function(receipt) {
+      return petShopInstance.buyArticle({
+        from: seller,
+        value: web3.toWei(articlePrice, "ether")
+      });
+    }).then(assert.fail)
+    .catch(function(error) {
+      assert(error.message.indexOf('revert') >= 0, "error should be revert");
+    }).then(function() {
+      return petShopInstance.getArticle.call();
+    }).then(function(data) {
+      //make sure sure the contract state was not altered
+      assert.equal(data[0], seller, "seller must be " + seller);
+      assert.equal(data[1], 0x0, "buyer must be empty");
+      assert.equal(data[2], articleName, "article name must be " + articleName);
+      assert.equal(data[3], articleDescription, "article description must be " + articleDescription);
+      assert.equal(data[4].toNumber(), web3.toWei(articlePrice, "ether"), "article price must be " + web3.toWei(articlePrice, "ether"));
+    });
+  });
+
+  // Test case: incorrect value
+  it("should throw an exception if you try to buy an article for a value different from its price", function() {
+    return petShop.deployed().then(function(instance) {
+      petShopInstance = instance;
+      return petShopInstance.buyArticle({
+        from: buyer,
+        value: web3.toWei(articlePrice + 1, "ether")
+      });
+    }).then(assert.fail)
+    .catch(function(error) {
+      assert(error.message.indexOf('revert') >= 0, "error should be revert");
+    }).then(function() {
+      return petShopInstance.getArticle.call();
+    }).then(function(data) {
+      //make sure sure the contract state was not altered
+      assert.equal(data[0], seller, "seller must be " + seller);
+      assert.equal(data[1], 0x0, "buyer must be empty");
+      assert.equal(data[2], articleName, "article name must be " + articleName);
+      assert.equal(data[3], articleDescription, "article description must be " + articleDescription);
+      assert.equal(data[4].toNumber(), web3.toWei(articlePrice, "ether"), "article price must be " + web3.toWei(articlePrice, "ether"));
+    });
+  });
+
+  // Test case: article has already been sold
+  it("should throw an exception if you try to buy an article that has already been sold", function() {
+    return petShop.deployed().then(function(instance) {
+      petShopInstance = instance;
+      return petShopInstance.buyArticle({
+        from: buyer,
+        value: web3.toWei(articlePrice, "ether")
+      });
+    }).then(function() {
+      return petShopInstance.buyArticle({
+        from: web3.eth.accounts[0],
+        value: web3.toWei(articlePrice, "ether")
+      });
+    }).then(assert.fail)
+    .catch(function(error) {
+      assert(error.message.indexOf('revert') >= 0, "error should be revert");
+    }).then(function() {
+      return petShopInstance.getArticle.call();
+    }).then(function(data) {
+      //make sure sure the contract state was not altered
+      assert.equal(data[0], seller, "seller must be " + seller);
+      assert.equal(data[1], buyer, "buyer must be " + buyer);
+      assert.equal(data[2], articleName, "article name must be " + articleName);
+      assert.equal(data[3], articleDescription, "article description must be " + articleDescription);
+      assert.equal(data[4].toNumber(), web3.toWei(articlePrice, "ether"), "article price must be " + web3.toWei(articlePrice, "ether"));
+    });
+  });
+
 });

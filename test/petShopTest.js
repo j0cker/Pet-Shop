@@ -1,3 +1,5 @@
+//test before mapping
+
 // Contract to be tested
 var petShop = artifacts.require("./petShop.sol");
 
