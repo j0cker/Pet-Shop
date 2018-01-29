@@ -2,16 +2,58 @@ pragma solidity ^0.4.11;
 
 contract petShop {
 
+    //lets physically group a set of variables,
+    //belonging to the same concept.
+    //this is not going to store anything in the
+    //contract state until we instantiate of this type
+    //and store it in the state.
+    struct Article {
+
+      uint id;
+      // State variables of the articles
+      address seller;
+
+      //at the begining is 0 and then this will change when the purchase
+      //is confirmed
+      address buyer;
+
+      string name;
+      string description;
+      uint256 price;
+
+    }
+
+    /*
+    mappings are associative arrays whose values are set to zero for all possible
+    keys by default, but values can be any data type including custom structure
+    types. Mappings cannot be interated over, because they are not stored as
+    such in the contract state. Theres no way to know the size of the
+    mapping or to determine if a ket exists or not. the only thing we can do
+    is changing the value asociated to a key or retrieving the value
+    asociated to a known key.
+    */
+
+    //this will generate a list of articles identified by their own id.
+    //so we can access to an article trough their id.
+    //we have declare a public articles with that the compiler is goign to
+    //generate automatically a getter method which is going to
+    //return the values of the article but not generate setter's functions.
+    mapping(uint => Article) public articles;
+    //this variable is going to help us keep track of the mapping
+    //to know how many articles we have.
+    uint articleCounter;
+
+    /*
+    These simple Variables are going to be replaced by the struct types.
     // State variables of the articles
     address seller;
-
     //at the begining is 0 and then this will change when the purchase
     //is confirmed
     address buyer;
-
     string name;
     string description;
     uint256 price;
+    */
 
     /*
     // constructor -> create a default article
@@ -22,6 +64,10 @@ contract petShop {
 
     //events
     event sellArticleEvent(
+
+      //variables of mapping and Structure
+      uint indexed _id,
+
       //lets add indexed (like an índice) which means that we are going
       //to watch only events specific to them
       address indexed _seller,
@@ -34,6 +80,10 @@ contract petShop {
     event buyArticleEvent (
       //lets add indexed (like an índice) which means that we are going
       //to watch only events specific to them
+
+      //variables of mapping and Structure
+      uint indexed _id,
+
       address indexed _seller,
       address indexed _buyer,
 
@@ -43,12 +93,82 @@ contract petShop {
 
     // sell an article. This will change the state of the contract so it whas a cost.
     function sellArticle(string _name, string _description, uint256 _price) public {
+
+      /*
+      These variables are going to be replaced by
+      Structure and mapping.
+
         seller = msg.sender;
         name = _name;
         description = _description;
         price = _price;
-        sellArticleEvent(seller, name, price);
+      */
+
+        //increment the counter variables of articles mapping
+        articleCounter++;
+
+        //store the article into the mapping.
+        articles[articleCounter] = Article (
+        	articleCounter,
+        	msg.sender,
+        	0x0,
+        	_name,
+        	_description,
+        	_price
+        );
+
+        sellArticleEvent(articleCounter, msg.sender, _name, _price);
+
+        //before mapping
+        //sellArticleEvent(articleCounter, msg.sender, name, price);
     }
+
+    //with mapping the getArticle function is not require due to
+    //mapping cause it is going to generate the get method of the
+    //article automatically. But we need the get function of the
+    //get number of articles which is different of the get articles.
+    //and get all article IDs available for sale
+
+    //fetch the number of mapping articles in the contract
+    function getNumberOfArticles() public constant returns (uint){
+    	return articleCounter;
+    }
+
+
+    // fetch and returns all article IDs available for sale
+    function getArticlesForSale() public constant returns (uint[]) {
+      // we check whether there is at least one article
+      require(articleCounter > 0);
+
+      // prepare intermediary array
+      //this will contain identifiers of the articles
+      //here is just a declaration of the array and
+      //we are telling it that the max size is the articleCounter variable.
+      uint[] memory articleIds = new uint[](articleCounter);
+
+      //this will help us later to have the right size of the sale articles.
+      uint numberOfArticlesForSale = 0;
+
+      // iterate over articles
+      for (uint i = 1; i <= articleCounter; i++) {
+        // keep only the ID of articles not sold yet
+        if (articles[i].buyer == 0x0) {
+          articleIds[numberOfArticlesForSale] = articles[i].id;
+          numberOfArticlesForSale++;
+        }
+      }
+
+      // copy the articleIds array into the smaller forSale array
+      uint[] memory forSale = new uint[](numberOfArticlesForSale);
+      for (uint j = 0; j < numberOfArticlesForSale; j++) {
+        forSale[j] = articleIds[j];
+      }
+      return (forSale);
+    }
+
+
+    /*
+    //without the mapping and structure.
 
     // get the article. Calling this function will be free.
     function getArticle() public constant returns (
@@ -60,12 +180,19 @@ contract petShop {
         return(seller, buyer, name, description, price);
     }
 
+    */
+
     // buy an article
     //lets put a payable function which means that
     //it may recieve value in the form of ether from its caller
     //if you dont declare variables as payable, you cannot send value
     //to it
-    function buyArticle() payable public {
+
+    //with mapping and Structure
+    function buyArticle(uint _id) payable public {
+
+    //without mapping and structure
+    //function buyArticle() payable public {
 
       // in every require function if doesnt comply,
       // it interrupt the execution of the function and refund
@@ -93,28 +220,62 @@ contract petShop {
       // from its balance by sending or transferring it to another
       // account or it can keep it for later.
 
+      //check if there is in the mapping at least one article
+      require(articleCounter>0);
+
+      //we check that the _id article counter of mapping exists
+      require(_id>0 && _id<=articleCounter);
+
+      //we retrieve the article from the mapping.
+      //this is goinf to store the article into the contract state.
+      Article storage article = articles[_id];
 
       // we check that the article was not already sold
-      require(buyer == 0x0);
+
+      require(article.buyer == 0x0);
+
+      //before the mapping
+      //require(buyer == 0x0);
 
       //we don't allow the seller to buy its own article
-      require(msg.sender != seller);
+
+      require(article.seller != msg.sender);
+
+      //before the mapping
+      //require(msg.sender != seller);
 
       //we check whether the value sent corresponds to the article price
-      require(msg.value == price);
+
+      require(article.price == msg.value);
+
+      //before the mapping
+      //require(msg.value == price);
 
 
       // if everything is ok
       // keep buyer's information (sender as the buyer)
-      buyer = msg.sender;
+
+      article.buyer = msg.sender;
+
+      //before the mapping
+      //buyer = msg.sender;
 
       // the buyer can buy the article
       //we send money to the seller
-      //this value comes from the value of the contract
-      seller.transfer(msg.value);
+      //this value comes from the value of the contract,
+      //thanks to the payable function
+
+      article.seller.transfer(msg.value);
+
+      //before the mapping
+      //seller.transfer(msg.value);
 
       // trigger the event
-      buyArticleEvent(seller, buyer, name, price);
+
+      buyArticleEvent(_id, article.seller, article.buyer, article.name, article.price);
+
+      //before the mapping
+      //buyArticleEvent(seller, buyer, name, price);
     }
 
 }
