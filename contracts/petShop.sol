@@ -42,6 +42,8 @@ contract petShop {
     //this variable is going to help us keep track of the mapping
     //to know how many articles we have.
     uint articleCounter;
+    //owner of the contract
+    address owner;
 
     /*
     These simple Variables are going to be replaced by the struct types.
@@ -55,12 +57,6 @@ contract petShop {
     uint256 price;
     */
 
-    /*
-    // constructor -> create a default article
-    function petShop() {
-        sellArticle("Default article", "This an article set by default", 1000000000000000000);
-    }
-    */
 
     //events
     event sellArticleEvent(
@@ -90,6 +86,19 @@ contract petShop {
       string _name,
       uint256 _price
     );
+
+    //constructor asign owner address at the beginning of the contract.
+    function petShop() {
+      owner = msg.sender;
+    }
+
+
+    /*
+    // constructor -> create a default article
+    function petShop() {
+        sellArticle("Default article", "This an article set by default", 1000000000000000000);
+    }
+    */
 
     // sell an article. This will change the state of the contract so it whas a cost.
     function sellArticle(string _name, string _description, uint256 _price) public {
@@ -138,7 +147,15 @@ contract petShop {
     // fetch and returns all article IDs available for sale
     function getArticlesForSale() public constant returns (uint[]) {
       // we check whether there is at least one article
-      require(articleCounter > 0);
+
+      if(articleCounter == 0){
+        return new uint[](0);
+      }
+
+      //this will throw an exception at the beginning
+      //require(articleCounter > 0);
+
+
 
       // prepare intermediary array
       //this will contain identifiers of the articles
@@ -276,6 +293,12 @@ contract petShop {
 
       //before the mapping
       //buyArticleEvent(seller, buyer, name, price);
+    }
+
+    //kill the smart contract
+    function kill(){
+      require(owner == msg.sender);
+      selfdestruct(owner);
     }
 
 }

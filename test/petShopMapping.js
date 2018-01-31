@@ -19,9 +19,13 @@ contract('petShop', function(accounts) {
   // Test case: check initial values
   it("should be initialized with empty values", function() {
     return petShop.deployed().then(function(instance) {
-      return instance.getNumberOfArticles();
+      petShopInstance = instance;
+      return petShopInstance.getNumberOfArticles();
     }).then(function(data) {
       assert.equal(data, 0x0, "number of articles must be zero");
+      return petShopInstance.getArticlesForSale();
+    }).then(function(data){
+      assert.equal(data.length, 0, "articles for sale should be empty");
     });
   });
 

@@ -11,6 +11,9 @@ contract('petShop', function(accounts) {
   var articleDescription = "Description for article 1";
   var articlePrice = 10;
 
+  /*
+  //we dont need this anymore, because of the change that we made in the
+  //contract about the require variable into the getArticlesForSale function.
   // Test case: getting articles for sale when no article for sale yet
   it("should throw an exception if you try to get articles for sale when there is no article at all", function() {
     return petShop.deployed().then(function(instance) {
@@ -21,6 +24,7 @@ contract('petShop', function(accounts) {
         assert(error.message.indexOf('revert') >= 0, "error should be revert");
       })
   });
+  */
 
   // Test case: buying an article when no article for sale yet
   it("should throw an exception if you try to buy an article when there is no article for sale", function() {
